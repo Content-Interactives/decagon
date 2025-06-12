@@ -1,21 +1,36 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { Lightbulb, RotateCcw } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 
 const Decagon = () => {
-  const initialPoints = [
-    {x: 200, y: 20}, {x: 317.4, y: 69}, {x: 380.4, y: 180},
-    {x: 380.4, y: 260}, {x: 317.4, y: 371}, {x: 200, y: 420},
-    {x: 82.6, y: 371}, {x: 19.6, y: 260}, {x: 19.6, y: 180},
-    {x: 82.6, y: 69}
-  ];
+  // Calculate points for a regular decagon
+  const calculateRegularDecagonPoints = () => {
+    const centerX = 250; // Center of the SVG (500/2)
+    const centerY = 150; // Center of the SVG (300/2)
+    const radius = 120; // Distance from center to vertices
+    const points = [];
+    
+    // Calculate 10 points evenly spaced around a circle
+    for (let i = 0; i < 10; i++) {
+      const angle = (i * 2 * Math.PI) / 10 - Math.PI / 2; // Start from top (-90 degrees)
+      const x = centerX + radius * Math.cos(angle);
+      const y = centerY + radius * Math.sin(angle);
+      points.push({ x, y });
+    }
+    
+    return points;
+  };
+
+  const initialPoints = calculateRegularDecagonPoints();
 
   const [points, setPoints] = useState(initialPoints);
   const [dragIndex, setDragIndex] = useState(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const svgRef = useRef(null);
 
-  const minDistance = 20; // Minimum distance between points and from points to sides
+  const minDistance = 20;
 
   const resetDecagon = () => {
     setPoints(initialPoints);
@@ -106,114 +121,110 @@ const Decagon = () => {
     return (val > 0) ? 1 : 2;
   };
 
-  const handleMouseDown = useCallback((index) => {
+  const handleMouseDown = useCallback((index, e) => {
+    const svg = svgRef.current;
+    const CTM = svg.getScreenCTM();
+    const point = points[index];
+    
+    // Calculate the offset between the touch/mouse position and the point's position
+    const clientX = e.clientX || e.touches[0].clientX;
+    const clientY = e.clientY || e.touches[0].clientY;
+    const offsetX = (clientX - CTM.e) / CTM.a - point.x;
+    const offsetY = (clientY - CTM.f) / CTM.d - point.y;
+    
+    setDragOffset({ x: offsetX, y: offsetY });
     setDragIndex(index);
-  }, []);
+  }, [points]);
 
   const handleMouseMove = useCallback((e) => {
     if (dragIndex !== null) {
-      const svgRect = e.currentTarget.getBoundingClientRect();
-      const x = e.clientX - svgRect.left;
-      const y = e.clientY - svgRect.top;
+      const svg = svgRef.current;
+      const CTM = svg.getScreenCTM();
       
-      setPoints(prevPoints => {
-        const newPoints = [...prevPoints];
-        newPoints[dragIndex] = { x, y };
-        
-        if (isValidPolygon(newPoints, dragIndex)) {
-          return newPoints;
-        }
-        return prevPoints;
-      });
+      // Get touch or mouse coordinates
+      const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+      const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+      
+      if (!clientX || !clientY) return;
+      
+      // Calculate the new point position accounting for the offset
+      const x = (clientX - CTM.e) / CTM.a - dragOffset.x;
+      const y = (clientY - CTM.f) / CTM.d - dragOffset.y;
+      
+      // Constrain points to stay within the SVG viewport (500x300)
+      const constrainedX = Math.max(0, Math.min(500, x));
+      const constrainedY = Math.max(0, Math.min(300, y));
+      
+      const newPoints = [...points];
+      newPoints[dragIndex] = { x: constrainedX, y: constrainedY };
+      
+      if (isValidPolygon(newPoints, dragIndex)) {
+        setPoints(newPoints);
+      }
     }
-  }, [dragIndex]);
+  }, [dragIndex, dragOffset, points]);
 
   const handleMouseUp = useCallback(() => {
     setDragIndex(null);
+    setDragOffset({ x: 0, y: 0 });
   }, []);
 
   const renderDecagon = () => (
-    <svg 
-      viewBox="0 0 400 440" 
-      width="400" 
-      height="440"
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-    >
-      <polygon
-        points={points.map(p => `${p.x},${p.y}`).join(' ')}
-        fill="#e0f2fe"
-        stroke="#0ea5e9"
-        strokeWidth="2"
-      />
-      {points.map((point, index) => (
-        <circle
-          key={index}
-          cx={point.x}
-          cy={point.y}
-          r="6"
-          fill="#0ea5e9"
-          stroke="white"
-          strokeWidth="2"
-          style={{ cursor: 'move' }}
-          onMouseDown={() => handleMouseDown(index)}
-        />
-      ))}
-    </svg>
+    <div className="flex gap-4">
+      <div className="border border-gray-200 rounded-lg flex-1 min-w-[300px] min-h-[200px] w-full">
+        <svg 
+          ref={svgRef}
+          viewBox="0 0 500 300" 
+          width="100%" 
+          height="100%"
+          className="w-full h-full select-none"
+          style={{ touchAction: 'none' }}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onTouchMove={handleMouseMove}
+          onTouchEnd={handleMouseUp}
+        >
+          <polygon
+            points={points.map(p => `${p.x},${p.y}`).join(' ')}
+            fill="#e0f2fe"
+            stroke="#0ea5e9"
+            strokeWidth="2"
+          />
+          {points.map((point, index) => (
+            <circle
+              key={index}
+              cx={point.x}
+              cy={point.y}
+              r="6"
+              fill="#0ea5e9"
+              stroke="white"
+              strokeWidth="2"
+              style={{ cursor: 'move' }}
+              onMouseDown={(e) => handleMouseDown(index, e)}
+              onTouchStart={(e) => handleMouseDown(index, e)}
+            />
+          ))}
+        </svg>
+      </div>
+    </div>
   );
-
-  const DecagonIcon = () => (
-    <svg width="40" height="40" viewBox="0 0 40 40">
-      <polygon
-        points="20,2 31.8,6.9 38.0,18 38.0,26 31.8,37.1 20,42 8.2,37.1 2,26 2,18 8.2,6.9"
-        fill="#0ea5e9"
-        stroke="#0ea5e9"
-        strokeWidth="1"
-      />
-    </svg>
-  );
-
   return (
-    <div className="bg-gray-100 p-8 min-h-screen">
-      <Card className="w-full max-w-4xl mx-auto shadow-md bg-white">
-        <CardHeader className="bg-sky-100 text-sky-800">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-3xl font-bold">Interactive Decagon Explorer</CardTitle>
-            <DecagonIcon />
+    <div className={`w-[500px] h-auto mx-auto mt-5 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1),0_2px_4px_-2px_rgba(0,0,0,0.1),0_0_0_1px_rgba(0,0,0,0.05)] bg-white rounded-lg overflow-hidden select-none`}>
+      <div className="p-4">
+        <div className="space-y-2">
+          <p className="text-sm text-gray-600 select-none">Drag the points to reshape the decagon:</p>
+          <div className="relative">
+            {renderDecagon()}
           </div>
-          <CardDescription className="text-sky-700 text-lg">Discover and Manipulate a Decagon!</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6 pt-6">
-          <Alert className="bg-blue-50 border-blue-100">
-            <Lightbulb className="h-4 w-4 text-blue-400" />
-            <AlertTitle className="text-blue-700">What is a Decagon?</AlertTitle>
-            <AlertDescription className="text-blue-600">
-              A decagon is a polygon with 10 sides and 10 angles. Its name comes from the Greek words 'deka' meaning ten and 'gonia' meaning angle. Try dragging the blue dots to reshape the decagon! The shape will maintain its integrity as a polygon, and points will stay a minimum distance apart.
-            </AlertDescription>
-          </Alert>
-          <div className="flex flex-col md:flex-row md:space-x-6 space-y-6 md:space-y-0">
-            <div className="flex-1 flex flex-col items-center justify-center space-y-4">
-              {renderDecagon()}
-              <Button onClick={resetDecagon} className="bg-sky-500 hover:bg-sky-600">
-                <RotateCcw className="mr-2 h-4 w-4" /> Reset Decagon
-              </Button>
-            </div>
-            <div className="flex-1 p-4 bg-amber-50 rounded">
-              <p className="font-semibold text-amber-700 mb-2">Decagon Properties:</p>
-              <ul className="text-amber-600 space-y-2 list-disc list-inside">
-                <li>10 sides</li>
-                <li>10 vertices (corners)</li>
-                <li>10 interior angles</li>
-                <li>Sum of interior angles: 1440°</li>
-                <li>Each interior angle measures 144° (in a regular decagon)</li>
-                <li>Sum of exterior angles: 360°</li>
-                <li>Each exterior angle measures 36° (in a regular decagon)</li>
-              </ul>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          <button 
+            onClick={resetDecagon}
+            className="w-full bg-[#008545] hover:bg-[#00703d] text-white text-sm py-2 rounded select-none"
+          >
+            <RotateCcw className="inline-block mr-2 h-4 w-4" /> Reset Decagon
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
