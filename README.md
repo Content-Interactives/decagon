@@ -1,41 +1,54 @@
 # Decagon
 
-The **Decagon** interactive introduces students to the properties of a decagon, a 10-sided polygon. Students can explore its angles, sides, and symmetry.
+React + Vite geometry view of a regular decagon: vertices, interior angles, and symmetry toggles as implemented in `Decagon.jsx`.
+
+**Live site:** [https://content-interactives.github.io/decagon](https://content-interactives.github.io/decagon)
+
+Curriculum alignment and placement: [Standards.md](Standards.md).
 
 ---
 
-## 🔗 Live Interactive
+## Stack
 
-Try it out here:  
-👉 [https://content-interactives.github.io/decagon](https://content-interactives.github.io/decagon)
-
----
-
-## 🌐 Where This Interactive Is Being Used
-
-This interactive is currently featured in the following locations:
-
-- <img width="20" height="20" alt="image" src="https://github.com/user-attachments/assets/5d12571f-8e12-4441-98ab-c0bc94069a96" /> **CK-12 Intent Response**  
-  - 👉 PRODUCTION: PENDING  
-  - 👉 MASTER: PENDING  
-- 📘 **CK-12 Flexbooks**
-  - 👉 PENDING
+| Layer | Notes |
+|--------|--------|
+| Build | Vite 6, `@vitejs/plugin-react` |
+| UI | React 19 |
+| Styling | Tailwind 3 |
+| Icons | lucide-react |
+| Deploy | `gh-pages -d dist`; `predeploy` runs `vite build` |
 
 ---
 
-## 📚 Standards & Subjects
+## Layout
 
-This interactive aligns with the following topics and standards:
-
-- **📂 Subject Area**: Middle School Math (Grade 7)  
-- **📐 Topic**: Geometry – Polygons (Decagon)  
-- **📏 Common Core**:  
-  - 7.G.B.5 – Use facts about supplementary, complementary, vertical, and adjacent angles in a multi-step problem to write and solve simple equations for an unknown angle in a figure.  
-  - 7.G.A.2 – Draw (freehand, with ruler and protractor, and with technology) geometric shapes with given conditions. Focus on constructing triangles and other polygons from given conditions.
+```
+vite.config.js          # base: '/decagon/'
+src/
+  main.jsx → App.jsx → components/Decagon.jsx
+  components/ui/
+```
 
 ---
 
-## 🛠️ Developer Notes
+## `vite.config.js`
 
-- Built with: React, HTML, CSS, JavaScript  
-- Deployed via GitHub Pages
+`base: '/decagon/'` must match the GitHub Pages repository path.
+
+---
+
+## Scripts
+
+| Command | Purpose |
+|---------|---------|
+| `npm run dev` | Vite dev server |
+| `npm run build` | Production build → `dist/` |
+| `npm run preview` | Preview production build |
+| `npm run lint` | ESLint |
+| `npm run deploy` | Build and push `dist/` to `gh-pages` |
+
+---
+
+## Embedding
+
+Polygon SVG/canvas size lives in `Decagon.jsx`; match iframe to that viewport.
